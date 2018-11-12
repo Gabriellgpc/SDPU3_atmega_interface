@@ -10,6 +10,7 @@
 #define DHT_PIN PC0
 #define THERMISTOR PC1   //A1
 
+#define THER_REF 27/510.0
 /******************** Funcoes **********************/
 //Leitura dos sensores
 uint8_t readDHT_byte();//funcao auxiliar de readDHT(data[])
@@ -42,13 +43,23 @@ void setup()
   sei();
 }
 
+volatile bool enable = false;
+volatile uint8_t pwm;
+
 int main()
 {
-
-
+  uint8_t temp;
+  uint8_t umid;
   while(true)
   {
+    if(enable)
+    {
+      umid = readDHT_byte();
+      temp = readTherm();
 
+      pwm = SPI_MasterTransmit(temp);
+      SPI_MasterTransmit(umid);
+    }
   }
 
   return 0;
@@ -68,12 +79,15 @@ ISR(USART_RX_vect){
   switch (data) {
     case ON:
       // ligar o sistema
+      enable = true;
     break;
     case OFF:
       //desligar o sistem
+      enable = false;
     break;
     case REQ:
       // RETORNA utimo PWM(%)
+      USART_transmision(pwm);
     break;
     default://comando nao reconhecido
       //ignorar
@@ -134,13 +148,13 @@ uint8_t readDHT_byte(){
 }
 //Realiza a conversao ADC e retorna o valor em Graus Celcius
 uint8_t readTherm(){
-  ADCSRA |= 0b10000111; //divide o clock_ms por 128 (o clock_ms de conversao sera 12Mhz/128)
+  ADCSRA |= 0b10000111; //divide o clock_ms por 128 (o clock_ms de conversao sera 16Mhz/128)
 
   ADMUX  |= 0b01000000;//usa o Vcc como ref
   ADMUX  |= 0b00000001; //converte do pino A1
   ADCSRA |= 0b01000000; // inicia a conversao A/D
   while(!(ADCSRA & 0b00010000)); //Aguarda a conversao ser concluida
-  return (ADC*27)/512;
+  return (ADC*THER_REF) >> 2; //desloca(ignorando os dois bits menos signicativos) para ADC ocupar um byte
 }
 
 //Comunicacao SPI
@@ -195,7 +209,7 @@ uint8_t USART_reception(){
   return UDR0;
 }
 //Limpa o buffer de entrada de dados
-void usart_flush(){
+void USART_flush(){
   uint8_t trash;
   while ( (UCSR0A & (1<<RXC0))) trash = UDR0;
 }
