@@ -64,7 +64,6 @@ int main()
 
   return 0;
 }
-
 /******************INTERRUPCOES******************/
 enum COMMAND{
   ON  = 0x01,
@@ -91,6 +90,7 @@ ISR(USART_RX_vect){
     break;
     default://comando nao reconhecido
       //ignorar
+     break;
   }
 }
 
@@ -154,18 +154,18 @@ uint8_t readTherm(){
   ADMUX  |= 0b00000001; //converte do pino A1
   ADCSRA |= 0b01000000; // inicia a conversao A/D
   while(!(ADCSRA & 0b00010000)); //Aguarda a conversao ser concluida
-  return (ADC*THER_REF) >> 2; //desloca(ignorando os dois bits menos signicativos) para ADC ocupar um byte
+  return (int)(ADC*THER_REF) >> 2; //desloca(ignorando os dois bits menos signicativos) para ADC ocupar um byte
 }
 
 //Comunicacao SPI
 void SPI_MasterInit(void)
 {
   /* Set MOSI and SCK output, all others input */
-  DDR_SPI = (1<<DD_MOSI)|(1<<DD_SCK);
+  DDRB = (1<<DDB3)|(1<<DDB5);
   /* Enable SPI, Master, set clock rate fck/4 */
   SPCR = (1<<SPE)|(1<<MSTR);
 }
-uint8_t SPI_MasterTransmit(char cData)
+uint8_t SPI_MasterTransmit(uint8_t cData)
 {
   /* Start transmission */
   SPDR = cData;
@@ -191,7 +191,7 @@ void USART_initialize(){
 }
 void USART_transmisionString(uint8_t *data){
   while(*data != 0x00){
-    usart_transmision(*data);
+    USART_transmision(*data);
     data++;
   }
 }
